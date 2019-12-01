@@ -1,39 +1,33 @@
 import math
 import random
-import numpy as np
 
+import numpy as np
 from tensorflow import keras
 
+from com.seregy77.evnn.neural.network import Network
+from com.seregy77.evnn.neural.utils import normalize_images, one_hot_encode
 from com.seregy77.evnn.spea2.individual import Individual
+from com.seregy77.evnn.spea2.network_parameter import LayerParameter
 
 
 def init_dataset():
     fashion_mnist = keras.datasets.fashion_mnist
-    mnist = keras.datasets.mnist
-    (train_images, train_labels) = mnist.load_data()[0]
-    size = math.floor(len(train_images) / 6)
+    # mnist = keras.datasets.mnist
+    (train_images, train_labels) = fashion_mnist.load_data()[0]
+    size = math.floor(len(train_images) * 0.8)
     train_images = train_images[:size]
     train_labels = train_labels[:size]
-    divisor = 255.0
-    train_images = train_images / divisor
+
+    train_images = normalize_images(train_images)
+    train_labels = one_hot_encode(train_labels)
+
     return train_images, train_labels
 
 
-def init_model():
-    l1 = keras.layers.Dense(512, activation='relu', trainable=False)
-    l2 = keras.layers.Dense(512, activation='relu', trainable=False)
-    l3 = keras.layers.Dense(10, activation='softmax', trainable=False)
-
-    model = keras.Sequential([
-        keras.layers.Flatten(input_shape=(28, 28), trainable=False),
-        l1,
-        l2,
-        l3
-    ])
-    model.trainable = False
-    model.compile(loss='sparse_categorical_crossentropy',
-                  metrics=['accuracy'])
-    return model
+def init_network():
+    network = Network(trainable=False)
+    network.compile()
+    return network
 
 
 def more_or_equal(value1, value2):
@@ -106,7 +100,7 @@ def get_non_dominated(individuals):
 class Spea2:
     _spea2_config = None
     _network_config = None
-    _model = None
+    _network = None
     _train_images = None
     _train_labels = None
 
@@ -116,22 +110,23 @@ class Spea2:
         (images, labels) = init_dataset()
         self._train_images = images
         self._train_labels = labels
-        self._model = init_model()
+        self._network = init_network()
 
     def init_weights(self):
         network = self._network_config
         layer_amount = len(network.layers)
-        weights = []
+        layer_params = []
         for i in range(layer_amount - 1):
             # Weights
             current_layer_size = network.layers[i]
             next_layer_size = network.layers[i + 1]
-            weights_with_biases = [
-                np.random.uniform(network.min_weight, network.max_weight, (current_layer_size, next_layer_size)),
-                np.random.uniform(network.min_bias, network.max_bias, (next_layer_size,))]
-            weights.append(weights_with_biases)
 
-        return weights
+            weights = np.random.uniform(network.min_weight, network.max_weight, (current_layer_size, next_layer_size))
+            biases = np.random.uniform(network.min_bias, network.max_bias, (next_layer_size,))
+
+            layer_params.append(LayerParameter(weights, biases))
+
+        return layer_params
 
     def init_population(self, size):
         result = []
@@ -152,10 +147,9 @@ class Spea2:
         individual.second_objective = accuracy
 
     def proceed_nn(self, weights):
-        for i in range(len(weights)):
-            self._model.layers[i + 1].set_weights(weights[i])
-
-        train_loss, train_acc = self._model.evaluate(self._train_images, self._train_labels, verbose=2)
+        network = self._network
+        network.assign_custom_weights(weights)
+        train_loss, train_acc = network.evaluate(self._train_images, self._train_labels)
         return train_loss, train_acc
 
     def objective2(self, individual):
@@ -277,7 +271,7 @@ class Spea2:
         crossed_population = []
         for i in range(0, mating_pool_size - 1, 2):
             new_individuals = self.apply_crossover(mating_pool[i], mating_pool[i + 1], crossover_probability)
-            crossed_population = crossed_population + new_individuals
+            crossed_population.extend(new_individuals)
 
         if len(crossed_population) < mating_pool_size:
             crossed_population.append(mating_pool[mating_pool_size - 1])
@@ -291,45 +285,13 @@ class Spea2:
 
     def apply_crossover(self, parent1, parent2, probability):
         if random.uniform(0, 1) < probability:
-            parent1_vector = parent1.weights_as_vector()
-            parent2_vector = parent2.weights_as_vector()
+            return parent1.cross(parent2)
 
-            vector_length = len(parent1_vector)
-            random_index = random.randrange(vector_length)
-
-            child1_vector = []
-            child2_vector = []
-            for i in range(vector_length):
-                if i < random_index:
-                    child1_vector.append(parent1_vector[i])
-                    child2_vector.append(parent2_vector[i])
-                else:
-                    child1_vector.append(parent2_vector[i])
-                    child2_vector.append(parent1_vector[i])
-
-            child1 = Individual([])
-            child1.weights_from_vector(child1_vector, self._network_config.layers)
-            child2 = Individual([])
-            child2.weights_from_vector(child2_vector, self._network_config.layers)
-
-            return [child1, child2]
-
-        return [parent1, parent2]
+        return parent1, parent2
 
     def apply_mutation(self, individual, probability):
         if random.uniform(0, 1) < probability:
-            new_individual = Individual(individual.weights)
-            new_individual_weights = new_individual.weights
-
-            for i in range(len(new_individual_weights)):
-                weight_matrix = new_individual_weights[i]
-                random_i = random.randrange(len(weight_matrix))
-                random_row = weight_matrix[random_i]
-                random_j = random.randrange(len(random_row))
-                new_weight = random.uniform(self._network_config.min_weight, self._network_config.max_weight)
-                random_row[random_j] = new_weight
-
-            return new_individual
+            return individual.mutate(self._network_config.min_weight, self._network_config.max_weight)
 
         return individual
 
@@ -357,4 +319,4 @@ class Spea2:
                                                   config.mutation_probability)
             archive = adjusted_archive
 
-        return sorted(get_non_dominated(archive), key=lambda x: x.second_objective, reverse=True)
+        return sorted(get_non_dominated(archive), key=lambda x: x.first_objective, reverse=True)

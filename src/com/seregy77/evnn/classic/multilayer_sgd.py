@@ -1,10 +1,8 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import os
-
-EPOCHS = 400
-#Disable GPU
-#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+EPOCHS = 4000
+# Disable GPU
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import tensorflow as tf
 from tensorflow import keras
@@ -12,19 +10,22 @@ from tensorflow import keras
 # Helper libraries
 import numpy as np
 import matplotlib.pyplot as plt
+from com.seregy77.evnn.neural.network import Network
+from com.seregy77.evnn.neural.utils import normalize_images, one_hot_encode
+from com.seregy77.evnn.neural import optimizer
 
 tf.compat.v1.disable_eager_execution()
 
 fashion_mnist = keras.datasets.fashion_mnist
-mnist = keras.datasets.mnist
+# mnist = keras.datasets.mnist
 
-(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+(train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
 
 class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
                'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
 
-train_images = train_images / 255.0
-test_images = test_images / 255.0
+train_images, test_images = normalize_images(train_images, test_images)
+train_labels, test_labels = one_hot_encode(train_labels, test_labels)
 
 # plt.figure(figsize=(10, 10))
 # for i in range(25):
@@ -36,19 +37,10 @@ test_images = test_images / 255.0
 #     plt.xlabel(class_names[train_labels[i]])
 # plt.show()
 
-model = keras.Sequential([
-    keras.layers.Flatten(input_shape=(28, 28)),
-    keras.layers.Dense(512, activation='relu'),
-    keras.layers.Dense(512, activation='relu'),
-    keras.layers.Dense(10, activation='softmax')
-])
-
-model.compile(optimizer='SGD',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
-
-history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=60000)
-test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=2)
+network = Network()
+network.compile(optimizer=optimizer.ADAM)
+history = network.fit(train_images, train_labels, accuracy_stop_value=0.8)
+test_loss, test_acc = network.evaluate(test_images, test_labels)
 
 print('\nTest accuracy:', test_acc)
 
@@ -58,8 +50,9 @@ plt.ylabel('accuracy')
 plt.xlabel('epoch')
 plt.legend(['train', 'val'], loc='upper left')
 axes = plt.gca()
-axes.set_ylim([0.0,1])
+axes.set_ylim([0.0, 1])
 plt.show()
+
 
 def plot_image(i, predictions_array, true_label, img):
     predictions_array, true_label, img = predictions_array, true_label[i], img[i]
@@ -92,8 +85,6 @@ def plot_value_array(i, predictions_array, true_label):
 
     thisplot[predicted_label].set_color('red')
     thisplot[true_label].set_color('blue')
-
-predictions = model.predict(test_images)
 
 # i = 0
 # plt.figure(figsize=(6,3))

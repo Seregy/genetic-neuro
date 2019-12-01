@@ -1,15 +1,19 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
+
 import tensorflow as tf
 
+from com.seregy77.evnn.neural import optimizer
+from com.seregy77.evnn.neural.network import Network
+from com.seregy77.evnn.neural.utils import normalize_images, one_hot_encode
 from com.seregy77.evnn.spea2.network_config import NetworkConfig
 from com.seregy77.evnn.spea2.spea2 import Spea2
 from com.seregy77.evnn.spea2.spea2_config import Spea2Config
 
-EPOCHS = 300
+EPOCHS = 3000
 
-#Disable GPU
+# Disable GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 from tensorflow import keras
@@ -21,15 +25,17 @@ import matplotlib.pyplot as plt
 tf.compat.v1.disable_eager_execution()
 
 fashion_mnist = keras.datasets.fashion_mnist
-mnist = keras.datasets.mnist
+# mnist = keras.datasets.mnist
 
-(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+(train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
 
 class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
                'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
 
-train_images = train_images / 255.0
-test_images = test_images / 255.0
+ACCURACY_THRESHOLD = 0.85
+
+train_images, test_images = normalize_images(train_images, test_images)
+train_labels, test_labels = one_hot_encode(train_labels, test_labels)
 
 # plt.figure(figsize=(10, 10))
 # for i in range(25):
@@ -56,23 +62,11 @@ individuals = Spea2(spea2_config, network_config).execute()
 
 weights = individuals[0].weights
 
-model = keras.Sequential([
-    keras.layers.Flatten(input_shape=(28, 28)),
-    keras.layers.Dense(512, activation='relu'),
-    keras.layers.Dense(512, activation='relu'),
-    keras.layers.Dense(10, activation='softmax')
-])
-
-for i in range(len(weights)):
-    model.layers[i + 1].set_weights(weights[i])
-
-model.compile(optimizer='SGD',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
-
-history = model.fit(train_images, train_labels, epochs=EPOCHS, batch_size=60000)
-
-test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=2)
+network = Network()
+network.compile(optimizer=optimizer.ADAM)
+network.assign_custom_weights(weights)
+history = network.fit(train_images, train_labels, accuracy_stop_value=0.8)
+test_loss, test_acc = network.evaluate(test_images, test_labels)
 
 print('\nTest accuracy:', test_acc)
 
@@ -82,8 +76,9 @@ plt.ylabel('accuracy')
 plt.xlabel('epoch')
 plt.legend(['train', 'val'], loc='upper left')
 axes = plt.gca()
-axes.set_ylim([0.0,1])
+axes.set_ylim([0.0, 1])
 plt.show()
+
 
 def plot_image(i, predictions_array, true_label, img):
     predictions_array, true_label, img = predictions_array, true_label[i], img[i]
