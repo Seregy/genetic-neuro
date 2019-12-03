@@ -1,18 +1,21 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-EPOCHS = 4000
-# Disable GPU
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import os
 
+import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-# Helper libraries
-import numpy as np
-import matplotlib.pyplot as plt
+from com.seregy77.evnn.neural import optimizer
 from com.seregy77.evnn.neural.network import Network
 from com.seregy77.evnn.neural.utils import normalize_images, one_hot_encode
-from com.seregy77.evnn.neural import optimizer
+
+# Disable GPU
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+MAX_EPOCHS = 10000
+ACCURACY_THRESHOLD = 0.85
 
 tf.compat.v1.disable_eager_execution()
 
@@ -39,7 +42,7 @@ train_labels, test_labels = one_hot_encode(train_labels, test_labels)
 
 network = Network()
 network.compile(optimizer=optimizer.ADAM)
-history = network.fit(train_images, train_labels, accuracy_stop_value=0.8)
+history = network.fit(train_images, train_labels, epochs=MAX_EPOCHS, accuracy_stop_value=ACCURACY_THRESHOLD)
 test_loss, test_acc = network.evaluate(test_images, test_labels)
 
 print('\nTest accuracy:', test_acc)

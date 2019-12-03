@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
+import random
 
 import tensorflow as tf
 
@@ -11,73 +12,18 @@ from com.seregy77.evnn.spea2.network_config import NetworkConfig
 from com.seregy77.evnn.spea2.spea2 import Spea2
 from com.seregy77.evnn.spea2.spea2_config import Spea2Config
 
-EPOCHS = 3000
+MAX_EPOCHS = 10000
+ACCURACY_THRESHOLD = 0.85
 
 # Disable GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 from tensorflow import keras
 
-# Helper libraries
 import numpy as np
 import matplotlib.pyplot as plt
 
 tf.compat.v1.disable_eager_execution()
-
-fashion_mnist = keras.datasets.fashion_mnist
-# mnist = keras.datasets.mnist
-
-(train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
-
-class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
-               'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
-
-ACCURACY_THRESHOLD = 0.85
-
-train_images, test_images = normalize_images(train_images, test_images)
-train_labels, test_labels = one_hot_encode(train_labels, test_labels)
-
-# plt.figure(figsize=(10, 10))
-# for i in range(25):
-#     plt.subplot(5, 5, i + 1)
-#     plt.xticks([])
-#     plt.yticks([])
-#     plt.grid(False)
-#     plt.imshow(train_images[i], cmap=plt.cm.binary)
-#     plt.xlabel(class_names[train_labels[i]])
-# plt.show()
-
-spea2_config = Spea2Config(population_size=25,
-                           archive_size=25,
-                           max_iterations=10,
-                           crossover_probability=0.8,
-                           mutation_probability=0.2)
-network_config = NetworkConfig(layers=[784, 512, 512, 10],
-                               max_weight=0.3,
-                               min_weight=-0.3,
-                               max_bias=0.3,
-                               min_bias=-0.3)
-# Load SPEA2 weights
-individuals = Spea2(spea2_config, network_config).execute()
-
-weights = individuals[0].weights
-
-network = Network()
-network.compile(optimizer=optimizer.ADAM)
-network.assign_custom_weights(weights)
-history = network.fit(train_images, train_labels, accuracy_stop_value=0.8)
-test_loss, test_acc = network.evaluate(test_images, test_labels)
-
-print('\nTest accuracy:', test_acc)
-
-plt.plot(history.history['accuracy'])
-plt.title('model accuracy')
-plt.ylabel('accuracy')
-plt.xlabel('epoch')
-plt.legend(['train', 'val'], loc='upper left')
-axes = plt.gca()
-axes.set_ylim([0.0, 1])
-plt.show()
 
 
 def plot_image(i, predictions_array, true_label, img):
@@ -111,6 +57,76 @@ def plot_value_array(i, predictions_array, true_label):
 
     thisplot[predicted_label].set_color('red')
     thisplot[true_label].set_color('blue')
+
+
+def plot_training_history(training_histories):
+    for training_history in training_histories:
+        plt.plot(training_history.history['accuracy'],
+                 color=(random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1)))
+
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'val'], loc='upper left')
+    axes = plt.gca()
+    axes.set_ylim([0.0, 1])
+    plt.show()
+
+
+fashion_mnist = keras.datasets.fashion_mnist
+# mnist = keras.datasets.mnist
+
+(train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
+
+class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
+               'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+
+train_images, test_images = normalize_images(train_images, test_images)
+train_labels, test_labels = one_hot_encode(train_labels, test_labels)
+
+# plt.figure(figsize=(10, 10))
+# for i in range(25):
+#     plt.subplot(5, 5, i + 1)
+#     plt.xticks([])
+#     plt.yticks([])
+#     plt.grid(False)
+#     plt.imshow(train_images[i], cmap=plt.cm.binary)
+#     plt.xlabel(class_names[train_labels[i]])
+# plt.show()
+
+spea2_config = Spea2Config(population_size=25,
+                           archive_size=25,
+                           max_iterations=10,
+                           crossover_probability=0.8,
+                           mutation_probability=0.2)
+network_config = NetworkConfig(layers=[784, 512, 512, 10],
+                               max_weight=0.1,
+                               min_weight=-0.1,
+                               max_bias=0.01,
+                               min_bias=-0.01)
+# Load SPEA2 weights
+individuals = Spea2(spea2_config, network_config).execute()
+
+resulting_individuals = []
+if len(individuals) > 1:
+    resulting_individuals = [individuals[0], individuals[-1]]
+else:
+    resulting_individuals = [individuals[0]]
+
+histories = []
+for individual in resulting_individuals:
+    weights = individual.weights
+
+    network = Network()
+    network.assign_custom_weights(weights)
+    network.compile(optimizer=optimizer.ADAM)
+    history = network.fit(train_images, train_labels, epochs=MAX_EPOCHS, accuracy_stop_value=ACCURACY_THRESHOLD)
+    histories.append(history)
+    test_loss, test_acc = network.evaluate(test_images, test_labels)
+
+    print('\nTest accuracy:', test_acc)
+
+plot_training_history(histories)
 
 # i = 0
 # plt.figure(figsize=(6,3))

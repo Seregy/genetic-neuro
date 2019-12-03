@@ -110,7 +110,7 @@ class Individual:
 
         return Individual(first_child_weights), Individual(second_child_weights)
 
-    def mutate(self, min_value, max_value):
+    def mutate(self, min_weight, max_weight, min_bias, max_bias):
         new_individual = Individual(self.weights)
 
         layer_index = random.randrange(len(self.weights))
@@ -122,11 +122,11 @@ class Individual:
             weights = random_layer.weights
             weights_vector = weights.ravel()
             random_index = random.randrange(len(weights_vector))
-            weights_vector[random_index] = random.uniform(min_value, max_value)
+            weights_vector[random_index] = random.uniform(min_weight, max_weight)
         else:
             biases = random_layer.biases
             random_index = random.randrange(len(biases))
-            biases[random_index] = random.uniform(min_value, max_value)
+            biases[random_index] = random.uniform(min_bias, max_bias)
 
         return new_individual
 

@@ -8,16 +8,16 @@ from com.seregy77.evnn.spea2.network_parameter import LayerParameter
 
 def init_weights():
     layers_config = [784, 50, 50, 10]
-    MAX_WEIGHT = 0.3 * 1.0
-    MIN_WEIGHT = -0.3 * 1.0
-    MAX_BIAS = 0.3 * 1.0
-    MIN_BIAS = -0.3 * 1.0
+    max_weight = 0.3 * 1.0
+    min_weight = -0.3 * 1.0
+    max_bias = 0.3 * 1.0
+    min_bias = -0.3 * 1.0
     layer_amount = len(layers_config)
     layer_params = []
     for i in range(layer_amount - 1):
         # Weights
-        weights = np.random.uniform(MIN_WEIGHT, MAX_WEIGHT, (layers_config[i], layers_config[i + 1]))
-        biases = np.random.uniform(MIN_BIAS, MAX_BIAS, (layers_config[i + 1],))
+        weights = np.random.uniform(min_weight, max_weight, (layers_config[i], layers_config[i + 1]))
+        biases = np.random.uniform(min_bias, max_bias, (layers_config[i + 1],))
         layer_param = LayerParameter(weights,
                                      biases)
         layer_params.append(layer_param)

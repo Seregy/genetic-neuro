@@ -94,7 +94,18 @@ def get_non_dominated(individuals):
         if individuals[i].fitness < 1:
             result.append(individuals[i])
 
+    if not result:
+        fittest_individual = sorted(individuals, key=lambda x: x.fitness)[0]
+        result.append(fittest_individual)
+
     return result
+
+
+def apply_crossover(parent1, parent2, probability):
+    if random.uniform(0, 1) < probability:
+        return parent1.cross(parent2)
+
+    return parent1, parent2
 
 
 class Spea2:
@@ -235,7 +246,8 @@ class Spea2:
         adjusted_archive = next_archive
         if desired_size == current_size:
             return adjusted_archive
-        elif desired_size > current_size:
+
+        if desired_size > current_size:
             population_with_fitness = zip(mixed_population, population_fitness)
             sorted_population = sorted(population_with_fitness, key=lambda tup: tup[1])
             sorted_individuals, sorted_fitness = zip(*sorted_population)
@@ -246,31 +258,31 @@ class Spea2:
             for i in range(individuals_to_copy):
                 adjusted_archive.append(sorted_individuals_not_in_archive[i])
             return adjusted_archive
-        else:
-            while len(adjusted_archive) > desired_size:
-                current_size = len(adjusted_archive)
-                minimal_distances = []
-                for i in range(current_size):
-                    current_individual = next_archive[i]
-                    individual_distances = []
-                    for j in range(current_size):
-                        j_individual = next_archive[j]
-                        if i == j:
-                            continue
-                        distance = self.compute_distance(current_individual, j_individual)
-                        individual_distances.append((j, distance))
-                    sorted_individuals_with_distances = sorted(individual_distances, key=lambda tup: tup[1])
-                    minimal_distances.append(sorted_individuals_with_distances[0])
-                sorted_minimal_distances = sorted(minimal_distances, key=lambda tup: tup[1])
-                index_to_remove = sorted_minimal_distances[0][0]
-                adjusted_archive.pop(index_to_remove)
-            return adjusted_archive
+
+        while len(adjusted_archive) > desired_size:
+            current_size = len(adjusted_archive)
+            minimal_distances = []
+            for i in range(current_size):
+                current_individual = next_archive[i]
+                individual_distances = []
+                for j in range(current_size):
+                    j_individual = next_archive[j]
+                    if i == j:
+                        continue
+                    distance = self.compute_distance(current_individual, j_individual)
+                    individual_distances.append((j, distance))
+                sorted_individuals_with_distances = sorted(individual_distances, key=lambda tup: tup[1])
+                minimal_distances.append(sorted_individuals_with_distances[0])
+            sorted_minimal_distances = sorted(minimal_distances, key=lambda tup: tup[1])
+            index_to_remove = sorted_minimal_distances[0][0]
+            adjusted_archive.pop(index_to_remove)
+        return adjusted_archive
 
     def apply_gen_operators(self, mating_pool, crossover_probability, mutation_probability):
         mating_pool_size = len(mating_pool)
         crossed_population = []
         for i in range(0, mating_pool_size - 1, 2):
-            new_individuals = self.apply_crossover(mating_pool[i], mating_pool[i + 1], crossover_probability)
+            new_individuals = apply_crossover(mating_pool[i], mating_pool[i + 1], crossover_probability)
             crossed_population.extend(new_individuals)
 
         if len(crossed_population) < mating_pool_size:
@@ -283,15 +295,10 @@ class Spea2:
 
         return new_population
 
-    def apply_crossover(self, parent1, parent2, probability):
-        if random.uniform(0, 1) < probability:
-            return parent1.cross(parent2)
-
-        return parent1, parent2
-
     def apply_mutation(self, individual, probability):
         if random.uniform(0, 1) < probability:
-            return individual.mutate(self._network_config.min_weight, self._network_config.max_weight)
+            config = self._network_config
+            return individual.mutate(config.min_weight, config.max_weight, config.min_bias, config.max_bias)
 
         return individual
 
