@@ -14,8 +14,8 @@ from com.seregy77.evnn.neural.utils import normalize_images, one_hot_encode
 # Disable GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-MAX_EPOCHS = 10000
-ACCURACY_THRESHOLD = 0.85
+MAX_EPOCHS = 500
+ACCURACY_THRESHOLD = 0.9
 
 tf.compat.v1.disable_eager_execution()
 
@@ -41,7 +41,7 @@ train_labels, test_labels = one_hot_encode(train_labels, test_labels)
 # plt.show()
 
 network = Network()
-network.compile(optimizer=optimizer.ADAM)
+network.compile(optimizer=optimizer.NESTEROV)
 history = network.fit(train_images, train_labels, epochs=MAX_EPOCHS, accuracy_stop_value=ACCURACY_THRESHOLD)
 test_loss, test_acc = network.evaluate(test_images, test_labels)
 

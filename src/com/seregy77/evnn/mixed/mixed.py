@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import math
 import os
 import random
 
@@ -12,8 +13,8 @@ from com.seregy77.evnn.spea2.network_config import NetworkConfig
 from com.seregy77.evnn.spea2.spea2 import Spea2
 from com.seregy77.evnn.spea2.spea2_config import Spea2Config
 
-MAX_EPOCHS = 10000
-ACCURACY_THRESHOLD = 0.85
+MAX_EPOCHS = 500
+ACCURACY_THRESHOLD = 0.9
 
 # Disable GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -94,16 +95,19 @@ train_labels, test_labels = one_hot_encode(train_labels, test_labels)
 #     plt.xlabel(class_names[train_labels[i]])
 # plt.show()
 
-spea2_config = Spea2Config(population_size=25,
+spea2_config = Spea2Config(population_size=50,
                            archive_size=25,
-                           max_iterations=10,
+                           max_iterations=50,
                            crossover_probability=0.8,
                            mutation_probability=0.2)
-network_config = NetworkConfig(layers=[784, 512, 512, 10],
-                               max_weight=0.1,
-                               min_weight=-0.1,
-                               max_bias=0.01,
-                               min_bias=-0.01)
+layer_structure = [784, 512, 512, 10]
+weight_range = math.sqrt(6)/(math.sqrt(layer_structure[0] + layer_structure[1]))
+bias_range = weight_range * 0.1
+network_config = NetworkConfig(layers=layer_structure,
+                               max_weight=weight_range,
+                               min_weight=-weight_range,
+                               max_bias=bias_range,
+                               min_bias=-bias_range)
 # Load SPEA2 weights
 individuals = Spea2(spea2_config, network_config).execute()
 
