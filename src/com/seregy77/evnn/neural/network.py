@@ -1,7 +1,7 @@
 from tensorflow import keras
 from tensorflow_core.python.keras.optimizer_v2.gradient_descent import SGD
 
-from com.seregy77.evnn.neural.early_stop import EarlyAccuracyStop
+from com.seregy77.evnn.neural.early_stop import EarlyAccuracyStop, EarlyMaeStop
 from com.seregy77.evnn.neural.layer import Layer
 
 
@@ -14,10 +14,10 @@ class Network:
                  output_classes=10,
                  trainable=True):
         if hidden_layers is None:
-            hidden_layers = [Layer(512, 'relu'), Layer(512, 'relu')]
+            hidden_layers = []
 
-        input_layer = keras.layers.Flatten(input_shape=input_shape)
-        output_layer = keras.layers.Dense(output_classes, activation='softmax')
+        input_layer = keras.layers.Dense(16, input_dim=13, activation='relu')
+        output_layer = keras.layers.Dense(output_classes, activation='linear')
 
         keras_layers = []
         for layer in hidden_layers:
@@ -48,7 +48,7 @@ class Network:
         if batch_size is None:
             batch_size = len(train_images)
 
-        callbacks = [EarlyAccuracyStop(value=accuracy_stop_value, verbose=1)]
+        callbacks = [EarlyMaeStop(value=accuracy_stop_value, verbose=1)]
 
         history = self._model.fit(train_images, train_labels, epochs=epochs, batch_size=batch_size, callbacks=callbacks,
                                   validation_split=0.2)
@@ -63,4 +63,4 @@ class Network:
 
         for i in range(len(weights)):
             new_weights = [weights[i].weights, weights[i].biases]
-            model.layers[i + 1].set_weights(new_weights)
+            model.layers[i].set_weights(new_weights)

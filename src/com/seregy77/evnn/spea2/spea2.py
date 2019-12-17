@@ -11,22 +11,34 @@ from com.seregy77.evnn.spea2.network_parameter import LayerParameter
 
 
 def init_dataset():
-    fashion_mnist = keras.datasets.fashion_mnist
-    # mnist = keras.datasets.mnist
-    (train_images, train_labels) = fashion_mnist.load_data()[0]
-    size = math.floor(len(train_images) * 0.8)
-    train_images = train_images[:size]
-    train_labels = train_labels[:size]
+    # fashion_mnist = keras.datasets.fashion_mnist
+    # # mnist = keras.datasets.mnist
+    # (train_images, train_labels) = fashion_mnist.load_data()[0]
+    # size = math.floor(len(train_images) * 0.8)
+    # train_images = train_images[:size]
+    # train_labels = train_labels[:size]
+    #
+    # train_images = normalize_images(train_images)
+    # train_labels = one_hot_encode(train_labels)
 
-    train_images = normalize_images(train_images)
-    train_labels = one_hot_encode(train_labels)
+    boston_housing = keras.datasets.boston_housing
+
+    (train_images, train_labels), (test_images, test_labels) = boston_housing.load_data()
+
+    mean = train_images.mean(axis=0)
+    train_images -= mean
+    std = train_images.std(axis=0)
+    train_images /= std
+
+    test_images -= mean
+    test_images /= std
 
     return train_images, train_labels
 
 
 def init_network():
-    network = Network(trainable=False)
-    network.compile()
+    network = Network(trainable=False, output_classes=1)
+    network.compile(loss='mean_squared_error', metrics=['mean_absolute_error'])
     return network
 
 
@@ -155,7 +167,7 @@ class Spea2:
     def init_objectives(self, individual):
         (loss, accuracy) = self.proceed_nn(individual.weights)
         individual.first_objective = -loss
-        individual.second_objective = accuracy
+        individual.second_objective = -accuracy
 
     def proceed_nn(self, weights):
         network = self._network
